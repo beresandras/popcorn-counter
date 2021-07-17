@@ -1,47 +1,44 @@
 #include <PDM.h>
 
-// microphone settings
+// Constants
 const int numChannels = 1;
 const long sampleRate = 16000;
 const int gain = 20;
+const int buttonPin = 2;
+const uint16_t bufferSize = 1 * sampleRate; // gets filled in ca. 1 second
+const char endOfFrame[] = "end_of_frame";
 
-// sound buffers
-const uint16_t bufferSize = 16000; // gets filled in ca. 1 second
+// Sound recording
 
-uint16_t soundBuffer1[bufferSize];
-uint16_t soundBuffer2[bufferSize];
+// 16-bit values: 2 bytes per sample
+uint8_t soundBuffer1[2 * bufferSize];
+uint8_t soundBuffer2[2 * bufferSize];
 
-uint16_t* pFrontSoundBuffer = soundBuffer1;
-uint16_t* pBackSoundBuffer = soundBuffer2;
+// 8-bit values: 1 byte per sample
+uint8_t popBuffer1[bufferSize];
+uint8_t popBuffer2[bufferSize];
+
+uint8_t* pFrontSoundBuffer = soundBuffer1; // gets written
+uint8_t* pBackSoundBuffer = soundBuffer2; // gets read
+
+uint8_t* pFrontPopBuffer = popBuffer1; // gets written
+uint8_t* pBackPopBuffer = popBuffer2; // gets read
 
 volatile uint16_t frontBufferIndex = 0;
 volatile uint16_t backBufferIndex = 0;
-volatile uint32_t globalOffset = 0;
 
-const float reactionTime = 0.2f; // in seconds
-const uint32_t reactionOffset = reactionTime * sampleRate;
-
-const float repetitionTime = 0.01f; // min. time between two button presses in seconds
-const uint32_t repetitionDiff = repetitionTime * sampleRate;
-
-// pop counting
-const int buttonPin = 2;
-
-uint32_t popArray[256];
-
-volatile uint16_t popArrayIndex = 0;
-volatile uint16_t popArrayIndex = 0;
+volatile bool dataError = false;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(500000);
   while (!Serial);
 
   PDM.onReceive(onReceiveSound);
   PDM.setGain(gain);
   
   if (!PDM.begin(numChannels, sampleRate)) {
-    Serial.println("Failed to start PDM!");
-    while (1);
+    Serial.println("Error: microphone initialization failed");
+    while(1);
   }
 
   pinMode(buttonPin, INPUT_PULLUP);
@@ -49,45 +46,55 @@ void setup() {
 }
 
 void loop() {
+  if (dataError) {
+    Serial.println("Error: could not send all data in time");
+    while(1);
+  }
+
+  // check if the buffers have been swapped -> new sound should be sent
   if (backBufferIndex != 0) {
-    // buffers have been swapped
-    Serial.println("Buffer swap");
-    Serial.println(popArrayIndex);
-    // send pop array size
-    // send back buffer size
-    // send pop array
-    // send back buffer
+    Serial.write(pBackSoundBuffer, 2 * backBufferIndex);
+    Serial.write(pBackPopBuffer, backBufferIndex);
+    Serial.write(endOfFrame, 12);
+    
     backBufferIndex = 0;
   }
 }
 
 void onReceiveSound() {
-  uint16_t* pTempBuffer;
+  uint8_t* pTempBuffer;
+  int numNewSamples = PDM.available() / 2; // 2 bytes per sample
   
-  int numNewSamples = PDM.available() / 2;
-  if (bufferSize - frontBufferIndex <= numNewSamples) {
-    // front buffer is full -> swap buffers
-    pTempBuffer = pBackBuffer;
-    pBackBuffer = pFrontBuffer;
-    pFrontBuffer = pTempBuffer;
+  // check if front buffer is full
+  if (bufferSize - frontBufferIndex <= numNewSamples) {  
 
-    globalOffset += frontBufferIndex;
+    // check if previous data was sent
+    if (backBufferIndex != 0) {
+      dataError = true;
+    }
+      
+    // swap sound buffers
+    pTempBuffer = pBackSoundBuffer;
+    pBackSoundBuffer = pFrontSoundBuffer;
+    pFrontSoundBuffer = pTempBuffer;
+    
+    // swap pop buffers
+    pTempBuffer = pBackPopBuffer;
+    pBackPopBuffer = pFrontPopBuffer;
+    pFrontPopBuffer = pTempBuffer;
+    
+    // swap indices
     backBufferIndex = frontBufferIndex;
     frontBufferIndex = 0;
   }
-  PDM.read(pFrontBuffer + frontBufferIndex, 2 * numNewSamples);
+  PDM.read(pFrontSoundBuffer + 2 * frontBufferIndex, 2 * numNewSamples);
+  memset(pFrontPopBuffer + frontBufferIndex, 0x00, numNewSamples);
   frontBufferIndex += numNewSamples;
 }
 
 void onButtonPress() {
-  // check value
-  uint32_t newPopIndex = globalOffset + frontBufferIndex - reactionOffset;
-  uint32_t oldPopIndex = 
-  
-  if (popArrayIndex == 0) { 
-    popArray[(popArrayIndex - 1) % 256]
+  // check if we received any samples since startup
+  if (frontBufferIndex > 0) {
+    pFrontPopBuffer[frontBufferIndex - 1] = 0x01;
   }
-  if (
-  popArray[popArrayIndex % 256] = 
-  popArrayIndex++;
 }

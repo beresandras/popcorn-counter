@@ -1,0 +1,4 @@
+*.npy
+
+.vscode/
+data/
