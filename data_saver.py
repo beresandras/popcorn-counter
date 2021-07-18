@@ -1,11 +1,12 @@
 import os
 import serial
 import numpy as np
+import matplotlib.pyplot as plt
 
-# data_folder = "./data/pops/"
-data_folder = "./data/noise/"
+data_folder = "./data/pops/"
+# data_folder = "./data/noise/"
 
-print(f"Starting data recording, hit Ctrl+C to stop it.")
+print("Starting data recording, hit Ctrl+C to stop it.")
 
 received_messages = []
 with serial.Serial(port="COM9", baudrate=500000) as serial:
@@ -49,3 +50,7 @@ np.save(data_folder + f"sound_{num_files}.npy", sound)
 np.save(data_folder + f"pop_{num_files}.npy", pop)
 
 print(f"Sample {num_files} has been saved to {data_folder}.")
+
+plt.plot(sound)
+plt.plot(pop * np.mean(np.abs(sound)))
+plt.show()

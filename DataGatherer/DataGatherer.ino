@@ -7,6 +7,7 @@ const int gain = 20;
 const int buttonPin = 2;
 const uint16_t bufferSize = 1 * sampleRate; // gets filled in ca. 1 second
 const char endOfFrame[] = "end_of_frame";
+const unsigned long debounceTime = 100; // button debouncing time in ms
 
 // Sound recording
 
@@ -28,6 +29,7 @@ volatile uint16_t frontBufferIndex = 0;
 volatile uint16_t backBufferIndex = 0;
 
 volatile bool dataError = false;
+volatile unsigned long lastButtonPressTime = 0;
 
 void setup() {
   Serial.begin(500000);
@@ -55,7 +57,7 @@ void loop() {
   if (backBufferIndex != 0) {
     Serial.write(pBackSoundBuffer, 2 * backBufferIndex);
     Serial.write(pBackPopBuffer, backBufferIndex);
-    Serial.write(endOfFrame, 12);
+    Serial.write(endOfFrame, 12); // omitting the last '\0' on purpose
     
     backBufferIndex = 0;
   }
@@ -93,8 +95,11 @@ void onReceiveSound() {
 }
 
 void onButtonPress() {
+  unsigned long currentTime = millis();
+  
   // check if we received any samples since startup
-  if (frontBufferIndex > 0) {
+  if (frontBufferIndex > 0 && currentTime - lastButtonPressTime > debounceTime) {
     pFrontPopBuffer[frontBufferIndex - 1] = 0x01;
+    lastButtonPressTime = currentTime;
   }
 }
