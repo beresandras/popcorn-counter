@@ -1,4 +1,7 @@
+*.zip
 *.npy
+
+.clang-format
 
 .vscode/
 data/
