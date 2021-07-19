@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 data_folder = "./data/pops/"
 # data_folder = "./data/noise/"
+buffer_size = 16000
 
 print("Starting data recording, hit Ctrl+C to stop it.")
 
@@ -22,21 +23,21 @@ frames = b"".join(received_messages).split(b"end_of_frame")
 frames = frames[1:-1]  # leave away first and last frame
 
 # check if all frames are of the same length
+frame_lengths = list(set([len(frame) for frame in frames]))
 assert (
-    len(set([len(frame) for frame in frames])) == 1
-), "Probably error: The received data is corrupted, the data frames are not of the same length."
+    len(frame_lengths) == 1
+), "Error: The received data is corrupted, the data frames are not of the same length."
+assert (
+    frame_lengths[0] == 3 * buffer_size
+), "Error: The received data is corrupted, the data frames are not of the expected length."
 
 sound_pieces = []
 pop_pieces = []
 for frame in frames:
-    assert (
-        len(frame) % 3 == 0
-    ), "Error: The received data is corrupted, the number of received bytes is not divisible by 3."
-    num_samples = len(frame) // 3
 
-    sound_piece = np.frombuffer(frame, dtype=np.int16, count=num_samples)
+    sound_piece = np.frombuffer(frame, dtype=np.int16, count=buffer_size)
     pop_piece = np.frombuffer(
-        frame[2 * num_samples :], dtype=np.uint8, count=num_samples
+        frame[2 * buffer_size :], dtype=np.uint8, count=buffer_size
     )
 
     sound_pieces.append(sound_piece)
