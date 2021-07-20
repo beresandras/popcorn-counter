@@ -34,7 +34,7 @@ private:
 
 public:
     NeuralNetwork();
-    float predict(const float* pInputBuffer, const int inputSize, const int outputSize);
+    float predict(float* pInputBuffer, const int inputSize, const int outputSize);
 };
 
 #endif

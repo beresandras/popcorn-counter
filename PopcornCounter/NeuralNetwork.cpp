@@ -166,10 +166,11 @@ NeuralNetwork::NeuralNetwork() : errorReporter(), model(tflite::GetModel(model_t
     output = interpreter->output(0);
 }
 
-float NeuralNetwork::predict(const float* pInputBuffer, const int inputSize, const int outputSize) {
+float NeuralNetwork::predict(float* pInputBuffer, const int inputSize, const int outputSize) {
     // copy input tensor
     for (int i = 0; i < inputSize; i++) {
         input->data.f[i] = pInputBuffer[i];
+        pInputBuffer[i] = 0.0f;
     }
 
     // run network
